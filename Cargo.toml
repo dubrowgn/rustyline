@@ -1,12 +1,12 @@
 [package]
-name = "rustyline"
+name = "tcalc-rustyline"
 version = "1.0.0"
-authors = ["Katsu Kawakami <kkawa1570@gmail.com>"]
-description = "Rustyline, a readline implementation based on Antirez's Linenoise"
-documentation = "http://docs.rs/rustyline"
-repository = "https://github.com/kkawakam/rustyline"
+authors = ["Katsu Kawakami <kkawa1570@gmail.com>", "Dustin Brown <dubrowgn@gmail.com>"]
+description = "A fork of Rustyline for use specifically with tcalc"
+documentation = "https://github.com/dubrowgn/rustyline"
+repository = "https://github.com/dubrowgn/rustyline"
 readme = "README.md"
-keywords = ["readline"]
+keywords = ["readline", "tcalc"]
 license = "MIT"
 
 [dependencies]
