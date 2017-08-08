@@ -8,7 +8,6 @@ pub enum Key {
     Enter, // Ctrl('M')
     Esc,
     Home,
-    Insert,
     Left,
     Null,
     PageDown,
@@ -24,33 +23,21 @@ pub struct KeyPress {
     pub key: Key,
     pub alt: bool,
     pub ctrl: bool,
-    pub shift: bool,
-    pub sup: bool,
 }
 
 macro_rules! key {
     ($key:tt) => (key!(Key::Char($key)));
-    ($($key:tt)*) => (KeyPress { key: $($key)*, alt: false, ctrl: false, shift: false, sup: false });
+    ($($key:tt)*) => (KeyPress { key: $($key)*, alt: false, ctrl: false });
 }
 
 macro_rules! alt {
     ($key:tt) => (alt!(Key::Char($key)));
-    ($($key:tt)*) => (KeyPress { key: $($key)*, alt: true, ctrl: false, shift: false, sup: false });
+    ($($key:tt)*) => (KeyPress { key: $($key)*, alt: true, ctrl: false });
 }
 
 macro_rules! ctrl {
     ($key:tt) => (ctrl!(Key::Char($key)));
-    ($($key:tt)*) => (KeyPress { key: $($key)*, alt: false, ctrl: true, shift: false, sup: false });
-}
-
-macro_rules! shift {
-    ($key:tt) => (shift!(Key::Char($key)));
-    ($($key:tt)*) => (KeyPress { key: $($key)*, alt: false, ctrl: false, shift: true, sup: false });
-}
-
-macro_rules! sup {
-    ($key:tt) => (sup!(Key::Char($key)));
-    ($($key:tt)*) => (KeyPress { key: $($key)*, alt: false, ctrl: false, shift: false, sup: true });
+    ($($key:tt)*) => (KeyPress { key: $($key)*, alt: false, ctrl: true });
 }
 
 #[allow(match_same_arms)]

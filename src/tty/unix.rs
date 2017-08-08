@@ -331,14 +331,6 @@ impl Term for PosixTerminal {
     }
 }
 
-#[cfg(unix)]
-pub fn suspend() -> Result<()> {
-    // For macos:
-    try!(signal::kill(nix::unistd::getppid(), signal::SIGTSTP));
-    try!(signal::kill(nix::unistd::getpid(), signal::SIGTSTP));
-    Ok(())
-}
-
 #[cfg(all(unix,test))]
 mod test {
     #[test]

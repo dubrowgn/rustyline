@@ -31,7 +31,6 @@ pub mod completion;
 mod consts;
 pub mod error;
 pub mod history;
-mod kill_ring;
 pub mod line_buffer;
 #[cfg(unix)]
 mod char_iter;
@@ -50,8 +49,7 @@ use encode_unicode::CharExt;
 use completion::{Completer, longest_common_prefix};
 use consts::{Key, KeyPress};
 use history::{Direction, History};
-use line_buffer::{LineBuffer, MAX_LINE, WordAction};
-use kill_ring::{Mode, KillRing};
+use line_buffer::{LineBuffer, MAX_LINE};
 pub use config::{CompletionType, Config, HistoryDuplicates};
 
 /// The error type for I/O and Linux Syscalls (Errno)
@@ -310,21 +308,6 @@ fn edit_insert(s: &mut State, ch: char) -> Result<()> {
     }
 }
 
-// Yank/paste `text` at current position.
-fn edit_yank(s: &mut State, text: &str) -> Result<()> {
-    if s.line.yank(text).is_some() {
-        s.refresh_line()
-    } else {
-        Ok(())
-    }
-}
-
-// Delete previously yanked text and yank/paste `text` at current position.
-fn edit_yank_pop(s: &mut State, yank_size: usize, text: &str) -> Result<()> {
-    s.line.yank_pop(yank_size, text);
-    edit_yank(s, text)
-}
-
 /// Move cursor on the left.
 fn edit_move_left(s: &mut State) -> Result<()> {
     if s.line.move_left() {
@@ -380,35 +363,6 @@ fn edit_backspace(s: &mut State) -> Result<()> {
     }
 }
 
-/// Kill the text from point to the end of the line.
-fn edit_kill_line(s: &mut State) -> Result<Option<String>> {
-    if let Some(text) = s.line.kill_line() {
-        try!(s.refresh_line());
-        Ok(Some(text))
-    } else {
-        Ok(None)
-    }
-}
-
-/// Kill backward from point to the beginning of the line.
-fn edit_discard_line(s: &mut State) -> Result<Option<String>> {
-    if let Some(text) = s.line.discard_line() {
-        try!(s.refresh_line());
-        Ok(Some(text))
-    } else {
-        Ok(None)
-    }
-}
-
-/// Exchange the char before cursor with the character at cursor.
-fn edit_transpose_chars(s: &mut State) -> Result<()> {
-    if s.line.transpose_chars() {
-        s.refresh_line()
-    } else {
-        Ok(())
-    }
-}
-
 fn edit_move_to_prev_word(s: &mut State) -> Result<()> {
     if s.line.move_to_prev_word() {
         s.refresh_line()
@@ -417,47 +371,8 @@ fn edit_move_to_prev_word(s: &mut State) -> Result<()> {
     }
 }
 
-/// Delete the previous word, maintaining the cursor at the start of the
-/// current word.
-fn edit_delete_prev_word<F>(s: &mut State, test: F) -> Result<Option<String>>
-    where F: Fn(char) -> bool
-{
-    if let Some(text) = s.line.delete_prev_word(test) {
-        try!(s.refresh_line());
-        Ok(Some(text))
-    } else {
-        Ok(None)
-    }
-}
-
 fn edit_move_to_next_word(s: &mut State) -> Result<()> {
     if s.line.move_to_next_word() {
-        s.refresh_line()
-    } else {
-        Ok(())
-    }
-}
-
-/// Kill from the cursor to the end of the current word, or, if between words, to the end of the next word.
-fn edit_delete_word(s: &mut State) -> Result<Option<String>> {
-    if let Some(text) = s.line.delete_word() {
-        try!(s.refresh_line());
-        Ok(Some(text))
-    } else {
-        Ok(None)
-    }
-}
-
-fn edit_word(s: &mut State, a: WordAction) -> Result<()> {
-    if s.line.edit_word(a) {
-        s.refresh_line()
-    } else {
-        Ok(())
-    }
-}
-
-fn edit_transpose_words(s: &mut State) -> Result<()> {
-    if s.line.transpose_words() {
         s.refresh_line()
     } else {
         Ok(())
@@ -489,33 +404,6 @@ fn edit_history_next(s: &mut State, history: &History, prev: bool) -> Result<()>
         let buf = history.get(s.history_index).unwrap();
         s.line.update(buf, buf.len());
     } else {
-        // Restore current edited line
-        s.snapshot();
-    }
-    s.refresh_line()
-}
-
-/// Substitute the currently edited line with the first/last history entry.
-fn edit_history(s: &mut State, history: &History, first: bool) -> Result<()> {
-    if history.is_empty() {
-        return Ok(());
-    }
-    if s.history_index == history.len() {
-        if first {
-            // Save the current edited line before to overwrite it
-            s.snapshot();
-        } else {
-            return Ok(());
-        }
-    } else if s.history_index == 0 && first {
-        return Ok(());
-    }
-    if first {
-        s.history_index = 0;
-        let buf = history.get(s.history_index).unwrap();
-        s.line.update(buf, buf.len());
-    } else {
-        s.history_index = history.len();
         // Restore current edited line
         s.snapshot();
     }
@@ -777,18 +665,15 @@ fn reverse_incremental_search<R: RawReader>(rdr: &mut R,
 /// (e.g., C-c will exit readline)
 #[allow(let_unit_value)]
 fn readline_edit<C: Completer>(prompt: &str,
-                               editor: &mut Editor<C>,
-                               original_mode: tty::Mode)
+                               editor: &mut Editor<C>)
                                -> Result<String> {
     let completer = editor.completer.as_ref().map(|c| c as &Completer);
-
     let mut stdout = io::stdout();
-
-    editor.kill_ring.reset();
     let mut s = State::new(&mut stdout,
                            editor.term.clone(),
                            prompt,
                            editor.history.len());
+
     try!(s.refresh_line());
 
     let mut rdr = try!(s.term.create_reader());
@@ -802,7 +687,7 @@ fn readline_edit<C: Completer>(prompt: &str,
         }
         let mut key = try!(rk);
         if let key!(c) = key {
-            editor.kill_ring.reset();
+
             try!(edit_insert(&mut s, c));
             continue;
         }
@@ -811,7 +696,7 @@ fn readline_edit<C: Completer>(prompt: &str,
         if key == key!(Key::Tab) && completer.is_some() {
             let next = try!(complete_line(&mut rdr, &mut s, completer.unwrap(), &editor.config));
             if next.is_some() {
-                editor.kill_ring.reset();
+
                 key = next.unwrap();
                 if let key!(c) = key {
                     try!(edit_insert(&mut s, c));
@@ -834,184 +719,67 @@ fn readline_edit<C: Completer>(prompt: &str,
         }
 
         match key {
-            ctrl!('A') |
             key!(Key::Home) => {
-                editor.kill_ring.reset();
+
                 // Move to the beginning of line.
                 try!(edit_move_home(&mut s))
             }
-            ctrl!('B') |
             key!(Key::Left) => {
-                editor.kill_ring.reset();
+
                 // Move back a character.
                 try!(edit_move_left(&mut s))
             }
             ctrl!('C') => {
-                editor.kill_ring.reset();
+
                 return Err(error::ReadlineError::Interrupted);
             }
-            ctrl!('D') => {
-                editor.kill_ring.reset();
-                if s.line.is_empty() {
-                    return Err(error::ReadlineError::Eof);
-                } else {
-                    // Delete (forward) one character at point.
-                    try!(edit_delete(&mut s))
-                }
-            }
-            ctrl!('E') |
             key!(Key::End) => {
-                editor.kill_ring.reset();
+
                 // Move to the end of line.
                 try!(edit_move_end(&mut s))
             }
-            ctrl!('F') |
             key!(Key::Right) => {
-                editor.kill_ring.reset();
+
                 // Move forward a character.
                 try!(edit_move_right(&mut s))
             }
-            ctrl!('H') |
             key!(Key::Backspace) => {
-                editor.kill_ring.reset();
+
                 // Delete one character backward.
                 try!(edit_backspace(&mut s))
             }
-            ctrl!('K') => {
-                // Kill the text from point to the end of the line.
-                if let Some(text) = try!(edit_kill_line(&mut s)) {
-                    editor.kill_ring.kill(&text, Mode::Append)
-                }
-            }
-            ctrl!('L') => {
-                // Clear the screen leaving the current line at the top of the screen.
-                try!(s.term.clear_screen(&mut s.out));
-                try!(s.refresh_line())
-            }
-            ctrl!('N') |
             key!(Key::Down) => {
-                editor.kill_ring.reset();
+
                 // Fetch the next command from the history list.
                 try!(edit_history_next(&mut s, &editor.history, false))
             }
-            ctrl!('P') |
             key!(Key::Up) => {
-                editor.kill_ring.reset();
+
                 // Fetch the previous command from the history list.
                 try!(edit_history_next(&mut s, &editor.history, true))
             }
-            ctrl!('T') => {
-                editor.kill_ring.reset();
-                // Exchange the char before cursor with the character at cursor.
-                try!(edit_transpose_chars(&mut s))
-            }
-            ctrl!('U') => {
-                // Kill backward from point to the beginning of the line.
-                if let Some(text) = try!(edit_discard_line(&mut s)) {
-                    editor.kill_ring.kill(&text, Mode::Prepend)
-                }
-            }
-            #[cfg(unix)]
-            ctrl!('V') => {
-                // Quoted insert
-                editor.kill_ring.reset();
-                let c = try!(rdr.next_char());
-                try!(edit_insert(&mut s, c)) // FIXME
-            }
-            ctrl!('W') => {
-                // Kill the word behind point, using white space as a word boundary
-                if let Some(text) = try!(edit_delete_prev_word(&mut s, char::is_whitespace)) {
-                    editor.kill_ring.kill(&text, Mode::Prepend)
-                }
-            }
-            ctrl!('Y') => {
-                // retrieve (yank) last item killed
-                if let Some(text) = editor.kill_ring.yank() {
-                    try!(edit_yank(&mut s, text))
-                }
-            }
-            #[cfg(unix)]
-            ctrl!('Z') => {
-                try!(original_mode.disable_raw_mode());
-                try!(tty::suspend());
-                try!(s.term.enable_raw_mode()); // TODO original_mode may have changed
-                try!(s.refresh_line())
-            }
-            // TODO CTRL-_ // undo
-            key!(Key::Enter) |
-            ctrl!('J') => {
+            key!(Key::Enter) => {
                 // Accept the line regardless of where the cursor is.
-                editor.kill_ring.reset();
+
                 try!(edit_move_end(&mut s));
                 break;
             }
-            alt!('\x08') |
-            alt!('\x7f') => {
-                // kill one word backward
-                // Kill from the cursor to the start of the current word, or, if between words, to the start of the previous word.
-                if let Some(text) = try!(edit_delete_prev_word(&mut s,
-                                                               |ch| !ch.is_alphanumeric())) {
-                    editor.kill_ring.kill(&text, Mode::Prepend)
-                }
-            }
-            alt!('<') => {
-                // move to first entry in history
-                editor.kill_ring.reset();
-                try!(edit_history(&mut s, &editor.history, true))
-            }
-            alt!('>') => {
-                // move to last entry in history
-                editor.kill_ring.reset();
-                try!(edit_history(&mut s, &editor.history, false))
-            }
-            alt!('B') => {
+            ctrl!(Key::Left) => {
                 // move backwards one word
-                editor.kill_ring.reset();
+
                 try!(edit_move_to_prev_word(&mut s))
             }
-            alt!('C') => {
-                // capitalize word after point
-                editor.kill_ring.reset();
-                try!(edit_word(&mut s, WordAction::CAPITALIZE))
-            }
-            alt!('D') => {
-                // kill one word forward
-                if let Some(text) = try!(edit_delete_word(&mut s)) {
-                    editor.kill_ring.kill(&text, Mode::Append)
-                }
-            }
-            alt!('F') => {
+            ctrl!(Key::Right) => {
                 // move forwards one word
-                editor.kill_ring.reset();
+
                 try!(edit_move_to_next_word(&mut s))
             }
-            alt!('L') => {
-                // lowercase word after point
-                editor.kill_ring.reset();
-                try!(edit_word(&mut s, WordAction::LOWERCASE))
-            }
-            alt!('T') => {
-                // transpose words
-                editor.kill_ring.reset();
-                try!(edit_transpose_words(&mut s))
-            }
-            alt!('U') => {
-                // uppercase word after point
-                editor.kill_ring.reset();
-                try!(edit_word(&mut s, WordAction::UPPERCASE))
-            }
-            alt!('Y') => {
-                // yank-pop
-                if let Some((yank_size, text)) = editor.kill_ring.yank_pop() {
-                    try!(edit_yank_pop(&mut s, yank_size, text))
-                }
-            }
             key!(Key::Delete) => {
-                editor.kill_ring.reset();
+
                 try!(edit_delete(&mut s))
             }
             _ => {
-                editor.kill_ring.reset();
+
                 // Ignore the character typed.
             }
         }
@@ -1034,7 +802,7 @@ impl Drop for Guard {
 fn readline_raw<C: Completer>(prompt: &str, editor: &mut Editor<C>) -> Result<String> {
     let original_mode = try!(editor.term.enable_raw_mode());
     let guard = Guard(original_mode);
-    let user_input = readline_edit(prompt, editor, original_mode);
+    let user_input = readline_edit(prompt, editor);
     drop(guard); // try!(disable_raw_mode(original_mode));
     println!("");
     user_input
@@ -1054,7 +822,6 @@ pub struct Editor<C: Completer> {
     term: Terminal,
     history: History,
     completer: Option<C>,
-    kill_ring: KillRing,
     config: Config,
 }
 
@@ -1069,7 +836,6 @@ impl<C: Completer> Editor<C> {
             term: term,
             history: History::with_config(config),
             completer: None,
-            kill_ring: KillRing::new(60),
             config: config,
         }
     }
