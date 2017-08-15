@@ -7,7 +7,7 @@
 //! Usage
 //!
 //! ```
-//! let mut rl = rustyline::Editor::<()>::new();
+//! let mut rl = tcalc_rustyline::Editor::<()>::new();
 //! let readline = rl.readline(">> ");
 //! match readline {
 //!     Ok(line) => println!("Line: {:?}",line),
@@ -730,8 +730,14 @@ fn readline_edit<C: Completer>(prompt: &str,
                 try!(edit_move_left(&mut s))
             }
             ctrl!('C') => {
-
-                return Err(error::ReadlineError::Interrupted);
+                if s.line.is_empty() {
+                    return Err(error::ReadlineError::Interrupted);
+                } else {
+                    return Err(error::ReadlineError::Cancelled);
+                }
+            }
+            ctrl!('D') => {
+                return Err(error::ReadlineError::Eof);
             }
             key!(Key::End) => {
 
@@ -883,7 +889,7 @@ impl<C: Completer> Editor<C> {
     }
 
     /// ```
-    /// let mut rl = rustyline::Editor::<()>::new();
+    /// let mut rl = tcalc_rustyline::Editor::<()>::new();
     /// for readline in rl.iter("> ") {
     ///     match readline {
     ///         Ok(line) => {

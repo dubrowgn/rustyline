@@ -1,8 +1,8 @@
-extern crate rustyline;
+extern crate tcalc_rustyline;
 
-use rustyline::completion::FilenameCompleter;
-use rustyline::error::ReadlineError;
-use rustyline::{Config, CompletionType, Editor};
+use tcalc_rustyline::completion::FilenameCompleter;
+use tcalc_rustyline::error::ReadlineError;
+use tcalc_rustyline::{Config, CompletionType, Editor};
 
 // On unix platforms you can use ANSI escape sequences
 #[cfg(unix)]

@@ -19,6 +19,8 @@ pub enum ReadlineError {
     /// EOF (Ctrl-D)
     Eof,
     /// Ctrl-C
+    Cancelled,
+    /// Ctrl-C
     Interrupted,
     /// Chars Error
     #[cfg(unix)]
@@ -37,6 +39,7 @@ impl fmt::Display for ReadlineError {
         match *self {
             ReadlineError::Io(ref err) => err.fmt(f),
             ReadlineError::Eof => write!(f, "EOF"),
+            ReadlineError::Cancelled => write!(f, "Cancelled"),
             ReadlineError::Interrupted => write!(f, "Interrupted"),
             #[cfg(unix)]
             ReadlineError::Char(ref err) => err.fmt(f),
@@ -55,6 +58,7 @@ impl error::Error for ReadlineError {
         match *self {
             ReadlineError::Io(ref err) => err.description(),
             ReadlineError::Eof => "EOF",
+            ReadlineError::Cancelled => "Cancelled",
             ReadlineError::Interrupted => "Interrupted",
             #[cfg(unix)]
             ReadlineError::Char(ref err) => err.description(),
