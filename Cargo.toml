@@ -1,6 +1,6 @@
 [package]
 name = "tcalc-rustyline"
-version = "1.0.1"
+version = "1.0.2"
 authors = ["Katsu Kawakami <kkawa1570@gmail.com>", "Dustin Brown <dubrowgn@gmail.com>"]
 description = "A fork of Rustyline for use specifically with tcalc"
 documentation = "https://github.com/dubrowgn/rustyline"
