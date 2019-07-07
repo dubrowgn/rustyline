@@ -10,6 +10,7 @@ keywords = ["readline", "tcalc"]
 license = "MIT"
 
 [dependencies]
+dirs = "2.0.1"
 libc = "0.2.7"
 unicode-width = "0.1.3"
 encode_unicode = "0.1.3"

@@ -145,7 +145,7 @@ fn filename_complete(path: &str,
                      esc_char: Option<char>,
                      break_chars: &BTreeSet<char>)
                      -> Result<Vec<String>> {
-    use std::env::{current_dir, home_dir};
+    use std::env::{current_dir};
 
     let sep = path::MAIN_SEPARATOR;
     let (dir_name, file_name) = match path.rfind(sep) {
@@ -156,7 +156,7 @@ fn filename_complete(path: &str,
     let dir_path = Path::new(dir_name);
     let dir = if dir_path.starts_with("~") {
         // ~[/...]
-        if let Some(home) = home_dir() {
+        if let Some(home) = dirs::home_dir() {
             match dir_path.strip_prefix("~") {
                 Ok(rel_path) => home.join(rel_path),
                 _ => home,

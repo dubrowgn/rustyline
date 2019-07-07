@@ -96,7 +96,7 @@ impl error::Error for CharsError {
     fn cause(&self) -> Option<&error::Error> {
         match *self {
             CharsError::NotUtf8 => None,
-            CharsError::Other(ref e) => e.cause(),
+            CharsError::Other(ref e) => e.source(),
         }
     }
 }

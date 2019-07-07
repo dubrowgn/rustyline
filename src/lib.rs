@@ -16,6 +16,7 @@
 //! ```
 #![allow(unknown_lints)]
 
+extern crate dirs;
 extern crate libc;
 #[cfg(unix)]
 extern crate nix;
@@ -933,7 +934,7 @@ impl<'a, C: Completer> Iterator for Iter<'a, C> {
         let readline = self.editor.readline(self.prompt);
         match readline {
             Ok(l) => {
-                self.editor.add_history_entry(l.as_ref()); // TODO Validate
+                self.editor.add_history_entry(l.as_str()); // TODO Validate
                 Some(Ok(l))
             }
             Err(error::ReadlineError::Eof) => None,

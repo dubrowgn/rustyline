@@ -36,7 +36,6 @@ fn get_win_size() -> (usize, usize) {
 /// Check TERM environment variable to see if current term is in our
 /// unsupported list
 fn is_unsupported_term() -> bool {
-    use std::ascii::AsciiExt;
     match std::env::var("TERM") {
         Ok(term) => {
             for iter in &UNSUPPORTED_TERM {
@@ -224,7 +223,7 @@ impl RawReader for PosixRawReader {
 
 
 static SIGWINCH_ONCE: sync::Once = sync::ONCE_INIT;
-static SIGWINCH: atomic::AtomicBool = atomic::ATOMIC_BOOL_INIT;
+static SIGWINCH: atomic::AtomicBool = atomic::AtomicBool::new(false);
 
 fn install_sigwinch_handler() {
     SIGWINCH_ONCE.call_once(|| unsafe {
